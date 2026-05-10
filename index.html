@@ -69,7 +69,6 @@
     cursor: crosshair;
   }
 
-
   .pad-label {
     position: absolute;
     display: flex; flex-direction: column; gap: 2px;
@@ -89,7 +88,6 @@
   .pad-label.flute { bottom: 0; left: 50%; transform: translateX(-50%); align-items: center; }
   .pad-label.flute .lname, .pad-label.flute .lweight { color: var(--wind); }
 
-  /* ── Spectrum ── */
   .spectrum-section { max-width: 520px; padding: 0 8px; }
 
   .section-label { font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; color: #999; margin-bottom: 0.6rem; }
@@ -99,7 +97,6 @@
   .spec-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
   .spec-bar      { width: 100%; border-radius: 1px 1px 0 0; transition: height 0.06s ease, background 0.1s ease; min-height: 2px; }
   .spec-bar-num  { font-size: 0.44rem; color: #bbb; }
-
 
   .side-panel {
     border-left: 1px solid var(--ink);
@@ -130,14 +127,12 @@
 
   .divider { height: 1px; background: #ddd; }
 
-
   .mix-list { display: flex; flex-direction: column; gap: 9px; }
   .mix-row  { display: flex; flex-direction: column; gap: 3px; }
   .mix-row-label  { font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; }
   .mix-bar-track  { height: 3px; background: #e0d9d0; border-radius: 99px; overflow: hidden; }
   .mix-bar-fill   { height: 100%; border-radius: 99px; transition: width 0.05s linear; width: 0%; }
   .mix-pct        { font-family: var(--display); font-size: 0.85rem; letter-spacing: 0.05em; line-height: 1; }
-
 
   .play-row { display: flex; gap: 4px; }
   .play-btn {
@@ -147,7 +142,6 @@
   }
   .play-btn:hover  { background: var(--paper2); }
   .play-btn.active { background: var(--ink); color: var(--paper); }
-
 
   .blog {
     border-top: 2px solid var(--ink);
@@ -174,7 +168,6 @@
     font-weight: 300;
   }
 
-  /* ── Footer ── */
   footer {
     border-top: 1px solid #ccc;
     padding: 0.7rem 2.5rem;
@@ -261,12 +254,6 @@
       <input class="ctrl-slider" type="range" id="octave" min="2" max="6" value="4" step="1">
     </div>
 
-    <div class="ctrl-block">
-      <div class="ctrl-label">Reverb</div>
-      <div class="ctrl-val" id="rev-val">0.3</div>
-      <input class="ctrl-slider" type="range" id="reverb" min="0" max="1" value="0.3" step="0.01">
-    </div>
-
     <div class="divider"></div>
 
     <div class="play-row">
@@ -277,7 +264,6 @@
   </div>
 </main>
 
-<!--blog post-->
 <section class="blog">
   <div class="blog-inner">
     <h2 class="blog-title">Blog Post</h2>
@@ -294,8 +280,7 @@
       each of the amplitudes to a sinewave oscillator at their respective harmonic frequencies, and the sum of those waves is the new interpolated sound! After making sure this worked for the 
       first two instruments, I decided to add a third, a flute. I was thinking of adding more instruments, but I had some difficulty finding steady, sustained state notes from a wider 
       variety of instruments. The same process was applied to this instrument as well. I also wanted to add a few more features such as changing the note or octave, as well as visually showing 
-      the newly interpolated harmonics of the blended sound below the triangular pad, which Claude helped to design. Something I was having some trouble with was the vibrato present in some of the recordings
-     mostly the flute and violin, I think it came out relatively okay, but if I were to do this with more time I would love to find or even record myself, more steady state samples. This was definitely a super interesting subject to explore, as we didn't 
+      the newly interpolated harmonics of the blended sound below the triangular pad, which Claude helped to design. This was definitely a super interesting subject to explore, as we didn't 
       talk about it too much during class, I think the video that was shown was maybe during the physical modeling or FFT presentation? But that machine also employed a lot more instruments 
       and much more unique sound as well such as the sitar. I would love to expand this further with more time and potentially find more samples from a wider range of instruments and techniques of 
       playing to see how timbre interpolation could differ in each state. I am also curious about how many different instruments could be interpolated before they all begin to sound more or less 
