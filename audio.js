@@ -17,39 +17,27 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TRUMPET = {
-  // H1  524 Hz  -38.3 dB → 0.44   H2  1047 Hz -31.5 dB → 1.00 (anchor)
-  // H3 1571 Hz  -32.5 dB → 0.89   H4  2095 Hz -46.1 dB → 0.19
-  // H5 2618 Hz  -45.7 dB → 0.20   H6  3159 Hz -70.0 dB → 0.03
-  // H7 3665 Hz  -54.9 dB → 0.10   H8  4189 Hz -65.9 dB → 0.05
-  harmonics:   [[1,0.44],[2,1.00],[3,0.89],[4,0.19],[5,0.20],[6,0.03],[7,0.10],[8,0.05]],
-  attack:      0.04,
-  release:     0.20,
-  vibratoAmt:  0.002,
+  harmonics:   [[1,0.80],[2,1.00],[3,0.60],[4,0.12],[5,0.10],[6,0.02],[7,0.04],[8,0.02]],
+  attack:      0.06,
+  release:     0.25,
+  vibratoAmt:  0.0005,
   vibratoRate: 5.8,
 };
 
 const VIOLIN = {
-  // H1  522 Hz  -33.4 dB → 1.00 (anchor)  H2 1039 Hz -36.5 dB → 0.73
-  // H3 1573 Hz  -37.3 dB → 0.68           H4 2097 Hz -41.8 dB → 0.39
-  // H5 2616 Hz  -61.6 dB → 0.05           H6 3154 Hz -43.1 dB → 0.35
-  // H7 3626 Hz  -45.6 dB → 0.25           H8 4206 Hz -56.4 dB → 0.09
-  harmonics:   [[1,1.00],[2,0.73],[3,0.68],[4,0.39],[5,0.05],[6,0.35],[7,0.25],[8,0.09]],
-  attack:      0.10,
-  release:     0.30,
-  vibratoAmt:  0.006,
-  vibratoRate: 6.2,
+  harmonics:   [[1,1.00],[2,0.60],[3,0.45],[4,0.25],[5,0.03],[6,0.18],[7,0.12],[8,0.05]],
+  attack:      0.12,
+  release:     0.35,
+  vibratoAmt:  0.0008,
+  vibratoRate: 5.5,
 };
 
 const FLUTE = {
-  // H1  529 Hz  -23.1 dB → 1.00 (anchor)  H2 1060 Hz -34.8 dB → 0.29
-  // H3 1590 Hz  -46.1 dB → 0.07           H4 2124 Hz -49.3 dB → 0.05
-  // H5 2631 Hz  -60.3 dB → 0.02           H6 3162 Hz -68.4 dB → 0.01
-  // H7 3684 Hz  -75.2 dB → 0.005          H8 4228 Hz -76.6 dB → 0.004
-  harmonics:   [[1,1.00],[2,0.29],[3,0.07],[4,0.05],[5,0.02],[6,0.01],[7,0.005],[8,0.004]],
-  attack:      0.12,
-  release:     0.35,
-  vibratoAmt:  0.003,
-  vibratoRate: 5.5,
+  harmonics:   [[1,1.00],[2,0.18],[3,0.04],[4,0.02],[5,0.01],[6,0.005],[7,0.002],[8,0.001]],
+  attack:      0.15,
+  release:     0.40,
+  vibratoAmt:  0.0004,
+  vibratoRate: 5.2,
 };
 
 const N_HARMONICS = 8;
@@ -198,12 +186,12 @@ function blendParam(a, b, c, wT, wV, wF) {
 }
 
 function buildImpulseResponse(ctx) {
-  const len = Math.floor(ctx.sampleRate * 2.0);
+  const len = Math.floor(ctx.sampleRate * 1.2);
   const buf = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const d = buf.getChannelData(ch);
     for (let i = 0; i < len; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5);
     }
   }
   return buf;
@@ -226,9 +214,25 @@ function startAudio() {
   masterGain.gain.value = 0.7;
   masterGain.connect(audioCtx.destination);
 
+  dryGain = audioCtx.createGain();
+  dryGain.gain.value = 0.55;
+  dryGain.connect(masterGain);
+
+  wetGain = audioCtx.createGain();
+  wetGain.gain.value = 0.45;
+  wetGain.connect(masterGain);
+
+  const convolver  = audioCtx.createConvolver();
+  convolver.buffer = buildImpulseResponse(audioCtx);
+  reverbBus        = audioCtx.createGain();
+  reverbBus.gain.value = 1;
+  reverbBus.connect(convolver);
+  convolver.connect(wetGain);
+
   envGain = audioCtx.createGain();
   envGain.gain.setValueAtTime(0, audioCtx.currentTime);
-  envGain.connect(masterGain);
+  envGain.connect(dryGain);
+  envGain.connect(reverbBus);
 
   // Vibrato LFO
   vibratoOsc        = audioCtx.createOscillator();
