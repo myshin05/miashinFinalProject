@@ -1,20 +1,3 @@
-// =============================================================================
-// audio.js — Timbre Interpolation Engine (Trumpet · Violin · Flute)
-//
-// Pipeline:
-//   Real Audacity FFT measurements → harmonic arrays
-//   Barycentric coordinates from triangle pad position → 3-way blend weights
-//   Weighted additive synthesis updated in real time via Web Audio API
-// =============================================================================
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. HARMONIC DATA — real Audacity FFT measurements
-//
-//    All three instruments recorded on C5 (~524 Hz).
-//    Amplitudes: dB → linear via 10^(dB/20), then normalised (loudest = 1.0)
-//    Format: [harmonic_number, normalised_linear_amplitude]
-// ─────────────────────────────────────────────────────────────────────────────
 
 const TRUMPET = {
   harmonics:   [[1,0.80],[2,1.00],[3,0.60],[4,0.12],[5,0.10],[6,0.02],[7,0.04],[8,0.02]],
