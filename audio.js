@@ -1,4 +1,20 @@
-//SWITCHING from dB to the linear scale
+// =============================================================================
+// audio.js — Timbre Interpolation Engine (Trumpet · Violin · Flute)
+//
+// Pipeline:
+//   Real Audacity FFT measurements → harmonic arrays
+//   Barycentric coordinates from triangle pad position → 3-way blend weights
+//   Weighted additive synthesis updated in real time via Web Audio API
+// =============================================================================
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. HARMONIC DATA — real Audacity FFT measurements
+//
+//    All three instruments recorded on C5 (~524 Hz).
+//    Amplitudes: dB → linear via 10^(dB/20), then normalised (loudest = 1.0)
+//    Format: [harmonic_number, normalised_linear_amplitude]
+// ─────────────────────────────────────────────────────────────────────────────
 
 const TRUMPET = {
   // H1  524 Hz  -38.3 dB → 0.44   H2  1047 Hz -31.5 dB → 1.00 (anchor)
@@ -40,12 +56,31 @@ const N_HARMONICS = 8;
 const NOTES = ['C','D','E','F','G','A','B'];
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. TRIANGLE GEOMETRY
+//
+//    The pad canvas is a square. We define a triangle inside it:
+//      A = Trumpet — top-left  corner
+//      B = Violin  — top-right corner
+//      C = Flute   — bottom-center
+//
+//    Positions are in normalised [0,1] canvas space.
+//    We use barycentric coordinates to compute per-instrument weights
+//    from any point the user clicks inside the triangle.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Normalised positions of each instrument vertex on the canvas.
+// Triangle is centered with equal padding on all sides.
 const VERTICES = {
   trumpet: { x: 0.18, y: 0.08 },   // top-left
   violin:  { x: 0.82, y: 0.08 },   // top-right
   flute:   { x: 0.50, y: 0.92 },   // bottom-center
 };
 
+/**
+ * Computes raw barycentric weights for point (px, py) in the triangle.
+ * Weights may be negative if the point is outside.
+ */
 function _rawBarycentric(px, py) {
   const { trumpet: A, violin: B, flute: C } = VERTICES;
   const denom = (B.y - C.y) * (A.x - C.x) + (C.x - B.x) * (A.y - C.y);
@@ -55,15 +90,20 @@ function _rawBarycentric(px, py) {
   return { wT, wV, wF };
 }
 
-
+/**
+ * Clamps point (px, py) to the nearest point on/inside the triangle.
+ * If the point is outside, negative barycentric weights are zeroed and
+ * re-normalised — this projects onto the nearest edge or vertex.
+ * Returns the clamped { x, y } in normalised canvas space.
+ */
 function clampToTriangle(px, py) {
   const { trumpet: A, violin: B, flute: C } = VERTICES;
   let { wT, wV, wF } = _rawBarycentric(px, py);
 
-
+  // Already inside — return unchanged
   if (wT >= 0 && wV >= 0 && wF >= 0) return { x: px, y: py };
 
-
+  // Zero negatives, re-normalise → projects onto nearest edge/vertex
   wT = Math.max(0, wT);
   wV = Math.max(0, wV);
   wF = Math.max(0, wF);
@@ -76,7 +116,10 @@ function clampToTriangle(px, py) {
   };
 }
 
-
+/**
+ * Returns normalised blend weights for a point guaranteed to be inside
+ * the triangle. Call clampToTriangle first then pass the result here.
+ */
 function barycentricWeights(px, py) {
   let { wT, wV, wF } = _rawBarycentric(px, py);
   wT = Math.max(0, wT);
@@ -87,9 +130,15 @@ function barycentricWeights(px, py) {
 }
 
 
-// HARMONIC BLENDING
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. HARMONIC BLENDING
+//
+//    For each of the 8 harmonics, compute a weighted blend of the three
+//    instruments' amplitudes using the barycentric weights as mix coefficients.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * returns an array of 8 blended amplitudes given three instrument weights
+ * Returns an array of 8 blended amplitudes given three instrument weights.
  * @param {number} wT - trumpet weight
  * @param {number} wV - violin weight
  * @param {number} wF - flute weight
@@ -104,6 +153,9 @@ function blendHarmonics(wT, wV, wF) {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. STATE
+// ─────────────────────────────────────────────────────────────────────────────
 
 let audioCtx    = null;
 let isPlaying   = false;
@@ -132,7 +184,9 @@ let vibratoGain = null;
 let oscs = [];
 
 
-// EXTRA FEATURES
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. UTILITY
+// ─────────────────────────────────────────────────────────────────────────────
 
 function noteToFreq(note, octave) {
   const semis = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
@@ -156,6 +210,13 @@ function buildImpulseResponse(ctx) {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. AUDIO GRAPH
+//
+//   [8 sine oscs] → [per-harmonic gainNode] → envGain ─┬→ dryGain → master
+//                                                        └→ reverbBus → convolver → wetGain → master
+//   vibratoOsc → vibratoGain → [all osc.frequency inputs]
+// ─────────────────────────────────────────────────────────────────────────────
 
 function startAudio() {
   if (isPlaying) return;
@@ -165,34 +226,18 @@ function startAudio() {
   masterGain.gain.value = 0.7;
   masterGain.connect(audioCtx.destination);
 
-  dryGain = audioCtx.createGain();
-  dryGain.gain.value = 1 - reverbMix;
-  dryGain.connect(masterGain);
-
-  wetGain = audioCtx.createGain();
-  wetGain.gain.value = reverbMix;
-  wetGain.connect(masterGain);
-
-  const convolver  = audioCtx.createConvolver();
-  convolver.buffer = buildImpulseResponse(audioCtx);
-  reverbBus        = audioCtx.createGain();
-  reverbBus.gain.value = 1;
-  reverbBus.connect(convolver);
-  convolver.connect(wetGain);
-
   envGain = audioCtx.createGain();
   envGain.gain.setValueAtTime(0, audioCtx.currentTime);
-  envGain.connect(dryGain);
-  envGain.connect(reverbBus);
+  envGain.connect(masterGain);
 
-
+  // Vibrato LFO
   vibratoOsc        = audioCtx.createOscillator();
   vibratoOsc.type   = 'sine';
   vibratoGain       = audioCtx.createGain();
   vibratoOsc.connect(vibratoGain);
   vibratoOsc.start();
 
-  // create 8 additive oscillators
+  // Spawn 8 additive oscillators
   const freq    = noteToFreq(currentNote, currentOct);
   const { wT, wV, wF } = weights;
   const blended = blendHarmonics(wT, wV, wF);
@@ -213,7 +258,7 @@ function startAudio() {
 
   updateVibrato(freq);
 
-  // attack
+  // Attack
   const attackTime = blendParam(TRUMPET.attack, VIOLIN.attack, FLUTE.attack, wT, wV, wF);
   const t = audioCtx.currentTime;
   envGain.gain.setValueAtTime(0, t);
@@ -249,6 +294,9 @@ function stopAudio() {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. REAL-TIME MIX UPDATE
+// ─────────────────────────────────────────────────────────────────────────────
 
 function applyMix() {
   const { wT, wV, wF } = weights;
@@ -527,15 +575,6 @@ window.addEventListener('DOMContentLoaded', () => {
     retuneOscs();
   });
 
-  // Reverb
-  document.getElementById('reverb').addEventListener('input', e => {
-    reverbMix = parseFloat(e.target.value);
-    document.getElementById('rev-val').textContent = reverbMix.toFixed(1);
-    if (isPlaying && dryGain && wetGain) {
-      dryGain.gain.setTargetAtTime(1 - reverbMix, audioCtx.currentTime, 0.05);
-      wetGain.gain.setTargetAtTime(reverbMix,      audioCtx.currentTime, 0.05);
-    }
-  });
 
   // Play / Stop
   document.getElementById('btn-play').addEventListener('click', startAudio);
