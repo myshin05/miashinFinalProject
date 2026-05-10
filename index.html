@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timbre — Trumpet · Violin · Flute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brass:  #c8923a;
+    --string: #6e9ebd;
+    --wind:   #7dab7a;
+    --ink:    #0e0e0e;
+    --paper:  #f0ebe2;
+    --paper2: #e4ddd1;
+    --mono:   'IBM Plex Mono', monospace;
+    --display:'Bebas Neue', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--paper); color: var(--ink); font-family: var(--mono); }
+
+  body { display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh; }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 100; opacity: 0.5;
+  }
+
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 1.2rem 2.5rem;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+
+  .header-title { font-family: var(--display); font-size: 2.6rem; letter-spacing: 0.04em; line-height: 1; }
+  .header-sub   { font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: #777; margin-top: 3px; }
+
+  .status-pill  { display: flex; align-items: center; gap: 7px; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: #777; }
+  .status-pip   { width: 6px; height: 6px; border-radius: 50%; background: #bbb; transition: background 0.3s; }
+  .status-pip.live { background: #c45c2e; animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 190px;
+    gap: 0;
+    padding: 2rem 2.5rem;
+    align-items: start;
+  }
+
+  .pad-col { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .pad-outer {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    padding: 44px 8px 52px 8px;
+  }
+
+  canvas#pad {
+    width: 100%;
+    aspect-ratio: 1;
+    display: block;
+    cursor: crosshair;
+  }
+
+
+  .pad-label {
+    position: absolute;
+    display: flex; flex-direction: column; gap: 2px;
+    pointer-events: none;
+  }
+
+  .lname   { font-family: var(--display); font-size: 1.5rem; line-height: 1; letter-spacing: 0.03em; }
+  .lmeta   { font-size: 0.5rem; letter-spacing: 0.12em; text-transform: uppercase; color: #888; }
+  .lweight { font-family: var(--display); font-size: 1rem; letter-spacing: 0.05em; }
+
+  .pad-label.trumpet { top: 0; left: 8px; }
+  .pad-label.trumpet .lname, .pad-label.trumpet .lweight { color: var(--brass); }
+
+  .pad-label.violin { top: 0; right: 8px; align-items: flex-end; }
+  .pad-label.violin .lname, .pad-label.violin .lweight { color: var(--string); }
+
+  .pad-label.flute { bottom: 0; left: 50%; transform: translateX(-50%); align-items: center; }
+  .pad-label.flute .lname, .pad-label.flute .lweight { color: var(--wind); }
+
+  /* ── Spectrum ── */
+  .spectrum-section { max-width: 520px; padding: 0 8px; }
+
+  .section-label { font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; color: #999; margin-bottom: 0.6rem; }
+
+  .spectrum-bars { display: flex; align-items: flex-end; gap: 5px; height: 64px; }
+
+  .spec-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+  .spec-bar      { width: 100%; border-radius: 1px 1px 0 0; transition: height 0.06s ease, background 0.1s ease; min-height: 2px; }
+  .spec-bar-num  { font-size: 0.44rem; color: #bbb; }
+
+
+  .side-panel {
+    border-left: 1px solid var(--ink);
+    margin-left: 2rem;
+    padding-left: 1.5rem;
+    display: flex; flex-direction: column; gap: 1.4rem;
+    padding-top: 0.2rem;
+  }
+
+  .ctrl-block { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-label { font-size: 0.52rem; letter-spacing: 0.14em; text-transform: uppercase; color: #999; }
+  .ctrl-val   { font-family: var(--display); font-size: 1.4rem; letter-spacing: 0.04em; line-height: 1; }
+
+  .ctrl-slider { -webkit-appearance: none; width: 100%; height: 2px; background: var(--ink); outline: none; cursor: pointer; }
+  .ctrl-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); cursor: pointer;
+  }
+
+  .note-grid { display: flex; gap: 3px; flex-wrap: wrap; }
+  .note-btn  {
+    font-family: var(--mono); font-size: 0.55rem; font-weight: 500;
+    padding: 3px 6px; border: 1px solid #ccc; background: transparent;
+    color: #888; cursor: pointer; letter-spacing: 0.05em; transition: all 0.1s;
+  }
+  .note-btn:hover  { border-color: var(--ink); color: var(--ink); }
+  .note-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .divider { height: 1px; background: #ddd; }
+
+
+  .mix-list { display: flex; flex-direction: column; gap: 9px; }
+  .mix-row  { display: flex; flex-direction: column; gap: 3px; }
+  .mix-row-label  { font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; }
+  .mix-bar-track  { height: 3px; background: #e0d9d0; border-radius: 99px; overflow: hidden; }
+  .mix-bar-fill   { height: 100%; border-radius: 99px; transition: width 0.05s linear; width: 0%; }
+  .mix-pct        { font-family: var(--display); font-size: 0.85rem; letter-spacing: 0.05em; line-height: 1; }
+
+
+  .play-row { display: flex; gap: 4px; }
+  .play-btn {
+    flex: 1; font-family: var(--display); font-size: 1rem; letter-spacing: 0.1em;
+    padding: 0.7rem 0.5rem; border: 1px solid var(--ink);
+    background: var(--paper); color: var(--ink); cursor: pointer; transition: background 0.12s, color 0.12s;
+  }
+  .play-btn:hover  { background: var(--paper2); }
+  .play-btn.active { background: var(--ink); color: var(--paper); }
+
+
+  .blog {
+    border-top: 2px solid var(--ink);
+    padding: 3rem 2.5rem;
+  }
+
+  .blog-inner {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .blog-title {
+    font-family: var(--display);
+    font-size: 2.2rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 1.2rem;
+  }
+
+  .blog-body {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #2a2a2a;
+    font-weight: 300;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid #ccc;
+    padding: 0.7rem 2.5rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer-text { font-size: 0.5rem; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">Timbre</div>
+    <div class="header-sub">FFT-derived harmonic interpolation · Trumpet · Violin · Flute</div>
+  </div>
+  <div class="status-pill">
+    <div class="status-pip" id="status-pip"></div>
+    <span id="status-text">Stopped</span>
+  </div>
+</header>
+
+<main>
+  <div class="pad-col">
+
+    <div class="pad-outer" id="pad-outer">
+      <div class="pad-label trumpet">
+        <div class="lname">Trumpet</div>
+        <div class="lmeta">C5 · 524 Hz · 8 partials</div>
+        <div class="lweight" id="w-trumpet">100%</div>
+      </div>
+      <div class="pad-label violin">
+        <div class="lname">Violin</div>
+        <div class="lmeta">C5 · 522 Hz · 8 partials</div>
+        <div class="lweight" id="w-violin">0%</div>
+      </div>
+      <div class="pad-label flute">
+        <div class="lname">Flute</div>
+        <div class="lmeta">C5 · 529 Hz · 8 partials</div>
+        <div class="lweight" id="w-flute">0%</div>
+      </div>
+      <canvas id="pad" width="800" height="800"></canvas>
+    </div>
+
+    <div class="spectrum-section">
+      <div class="section-label">Blended harmonic spectrum</div>
+      <div class="spectrum-bars" id="spec-bars"></div>
+    </div>
+
+  </div>
+
+  <div class="side-panel">
+
+    <div class="ctrl-block">
+      <div class="ctrl-label">Mix</div>
+      <div class="mix-list">
+        <div class="mix-row">
+          <div class="mix-row-label">Trumpet</div>
+          <div class="mix-bar-track"><div class="mix-bar-fill" id="bar-trumpet" style="background:var(--brass)"></div></div>
+          <div class="mix-pct" style="color:var(--brass)" id="pct-trumpet">100%</div>
+        </div>
+        <div class="mix-row">
+          <div class="mix-row-label">Violin</div>
+          <div class="mix-bar-track"><div class="mix-bar-fill" id="bar-violin" style="background:var(--string)"></div></div>
+          <div class="mix-pct" style="color:var(--string)" id="pct-violin">0%</div>
+        </div>
+        <div class="mix-row">
+          <div class="mix-row-label">Flute</div>
+          <div class="mix-bar-track"><div class="mix-bar-fill" id="bar-flute" style="background:var(--wind)"></div></div>
+          <div class="mix-pct" style="color:var(--wind)" id="pct-flute">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="ctrl-block">
+      <div class="ctrl-label">Note</div>
+      <div class="note-grid" id="note-grid"></div>
+    </div>
+
+    <div class="ctrl-block">
+      <div class="ctrl-label">Octave</div>
+      <div class="ctrl-val" id="oct-val">4</div>
+      <input class="ctrl-slider" type="range" id="octave" min="2" max="6" value="4" step="1">
+    </div>
+
+    <div class="ctrl-block">
+      <div class="ctrl-label">Reverb</div>
+      <div class="ctrl-val" id="rev-val">0.3</div>
+      <input class="ctrl-slider" type="range" id="reverb" min="0" max="1" value="0.3" step="0.01">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="play-row">
+      <button class="play-btn" id="btn-play">▶ Play</button>
+      <button class="play-btn" id="btn-stop">■ Stop</button>
+    </div>
+
+  </div>
+</main>
+
+<!--blog post-->
+<section class="blog">
+  <div class="blog-inner">
+    <h2 class="blog-title">Blog Post</h2>
+    <p class="blog-body">For my my final project I wanted to explore timbre interpolation as we were shown in class a video of this concept, allowing multiple different instruments to 
+      sound truly "blended together." So the implementation that was suggested to me and that I used was to first begin with an offline approach to first find two basic instruments that 
+      are playing the same note at approximately the same volume in order to analyze the underlying harmonic content of each using Fast Fourier Transformations(FFTs). I decided to start with 
+      trumpet and violin just because they sound quite different and found recordings of each of these instruments playing C5, cut each down to 2 seconds in the middle portion of the recording to 
+      account for both attack and decay, and loaded these wav files into Audacity where I then viewed the frequency analysis with the plot spectrum. For each of these spectrums, you see 
+      different spikes at relatively even spaced frequencies, each of which are harmonic partials, which give a particular  instrument its character of special/unique way of sounding. 
+      I hovered over each spike and recorded the first 8 frequencies and amplitudes, giving me a table of 8 harmonics per instrument. It was interesting in simply how different each instrument's 
+      partials were, despite only taking measurements from 2 second clips. After gathering all of the harmonics of the trumpet and violin, I programmed, with the help of Claude, to mix the 
+      harmonics and perform additive synthesis to achieve the "blended" sound. To mix the harmonics, I had to first convert each of the amplitudes from dB to a linear scale to interpolate correctly, 
+      using the formula: 10^(dB/20). Once this was converted, each pair of harmonics were blended individually using linear interpolation, which is then fed into additive synthesis, assigining
+      each of the amplitudes to a sinewave oscillator at their respective harmonic frequencies, and the sum of those waves is the new interpolated sound! After making sure this worked for the 
+      first two instruments, I decided to add a third, a flute. I was thinking of adding more instruments, but I had some difficulty finding steady, sustained state notes from a wider 
+      variety of instruments. The same process was applied to this instrument as well. I also wanted to add a few more features such as changing the note or octave, as well as visually showing 
+      the newly interpolated harmonics of the blended sound below the triangular pad, which Claude helped to design. This was definitely a super interesting subject to explore, as we didn't 
+      talk about it too much during class, I think the video that was shown was maybe during the physical modeling or FFT presentation? But that machine also employed a lot more instruments 
+      and much more unique sound as well such as the sitar. I would love to expand this further with more time and potentially find more samples from a wider range of instruments and techniques of 
+      playing to see how timbre interpolation could differ in each state. I am also curious about how many different instruments could be interpolated before they all begin to sound more or less 
+      like the same thing(in a 2D pad). 
+    </p>
+  </div>
+</section>
+
+<footer>
+  <span class="footer-text">Drag inside the triangle to interpolate timbre</span>
+  <span class="footer-text" id="footer-coords">T:1.00 · V:0.00 · F:0.00</span>
+</footer>
+
+<script src="audio.js"></script>
+</body>
+</html>
